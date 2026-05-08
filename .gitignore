@@ -1,0 +1,66 @@
+# ============================================================
+#  CLO4-IDS-ML-Solution — .gitignore
+# ============================================================
+
+# ── Dataset (too large for GitHub) ───────────────────────────
+data/
+*.csv
+*.pcap
+*.pcapng
+
+# ── Trained model artifacts ──────────────────────────────────
+backend/model.pkl
+backend/scaler.pkl
+backend/label_encoder.pkl
+backend/feature_names.pkl
+
+# ── Python ───────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# ── Virtual environments ─────────────────────────────────────
+venv/
+env/
+.env/
+.venv/
+ENV/
+
+# ── Jupyter Notebook checkpoints ────────────────────────────
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# ── Environment variables ────────────────────────────────────
+.env
+.env.local
+*.env
+
+# ── OS files ─────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+desktop.ini
+
+# ── VS Code ──────────────────────────────────────────────────
+.vscode/
+*.code-workspace
+
+# ── Logs ─────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── Temp / output ────────────────────────────────────────────
+*.tmp
+*.bak
+*.swp

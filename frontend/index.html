@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SecureNet IDS — AI Intrusion Detection</title>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Exo+2:wght@300;400;600;700;900&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #050a0e;
+      --panel: #0a1520;
+      --panel2: #0d1e2e;
+      --border: #0e3a5c;
+      --accent: #00d4ff;
+      --accent2: #00ff9d;
+      --danger: #ff3c5c;
+      --warn: #ffaa00;
+      --text: #c8e8f8;
+      --muted: #4a7a9b;
+      --font-mono: 'Share Tech Mono', monospace;
+      --font-main: 'Exo 2', sans-serif;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: var(--font-main); min-height: 100vh; overflow-x: hidden; }
+    body::before {
+      content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+      background-image: linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+
+    /* ── Header ── */
+    header {
+      position: relative; z-index: 10;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 40px;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(90deg, rgba(0,212,255,0.05), transparent);
+    }
+    .logo { display: flex; align-items: center; gap: 14px; }
+    .logo-icon {
+      width: 42px; height: 42px; border: 2px solid var(--accent);
+      display: flex; align-items: center; justify-content: center; font-size: 20px;
+      box-shadow: 0 0 16px rgba(0,212,255,0.4);
+      clip-path: polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);
+      background: rgba(0,212,255,0.1);
+    }
+    .logo-text h1 { font-size: 20px; font-weight: 900; letter-spacing: 3px; color: var(--accent); text-transform: uppercase; }
+    .logo-text p { font-family: var(--font-mono); font-size: 10px; color: var(--muted); letter-spacing: 2px; }
+    .status-bar { display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 12px; color: var(--accent2); }
+    .status-dot { width: 8px; height: 8px; background: var(--accent2); border-radius: 50%; animation: pulse 2s infinite; box-shadow: 0 0 8px var(--accent2); }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+    /* ── Main ── */
+    main { position: relative; z-index: 1; max-width: 1400px; margin: 0 auto; padding: 32px 40px; display: grid; gap: 24px; }
+
+    /* ── Stats row ── */
+    .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+    .stat-card {
+      background: var(--panel); border: 1px solid var(--border);
+      padding: 20px 24px; position: relative; overflow: hidden; transition: border-color 0.3s;
+    }
+    .stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--accent); }
+    .stat-card.danger::before { background: var(--danger); }
+    .stat-card.ok::before { background: var(--accent2); }
+    .stat-card:hover { border-color: var(--accent); }
+    .stat-label { font-family: var(--font-mono); font-size: 10px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; margin-bottom: 10px; }
+    .stat-value { font-size: 30px; font-weight: 900; color: var(--accent); line-height: 1; font-family: var(--font-mono); transition: all 0.4s; }
+    .stat-card.ok .stat-value { color: var(--accent2); }
+    .stat-sub { font-size: 11px; color: var(--muted); margin-top: 6px; }
+
+    /* ── Model Switcher ── */
+    .model-switcher {
+      background: var(--panel); border: 1px solid var(--border);
+      padding: 20px 28px;
+      display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+    }
+    .switcher-label { font-family: var(--font-mono); font-size: 11px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; white-space: nowrap; }
+    .model-btn {
+      font-family: var(--font-mono); font-size: 12px; letter-spacing: 2px; text-transform: uppercase;
+      border: 1px solid var(--border); background: transparent; color: var(--muted);
+      padding: 10px 24px; cursor: pointer; transition: all 0.2s; position: relative;
+    }
+    .model-btn:hover { border-color: var(--accent); color: var(--text); }
+    .model-btn.active {
+      border-color: var(--accent); color: var(--accent);
+      background: rgba(0,212,255,0.08);
+      box-shadow: 0 0 12px rgba(0,212,255,0.2);
+    }
+    .model-btn.active::before {
+      content: '▶ '; font-size: 10px;
+    }
+    .model-metrics-preview {
+      margin-left: auto; font-family: var(--font-mono); font-size: 11px; color: var(--muted);
+      display: flex; gap: 24px;
+    }
+    .mmp-item { text-align: center; }
+    .mmp-val { font-size: 16px; color: var(--accent2); font-weight: bold; }
+    .mmp-key { font-size: 9px; letter-spacing: 1px; color: var(--muted); margin-top: 2px; }
+
+    /* ── Two col ── */
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+
+    /* ── Panel ── */
+    .panel { background: var(--panel); border: 1px solid var(--border); overflow: hidden; }
+    .panel-header {
+      padding: 16px 24px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+      background: rgba(0,212,255,0.03);
+    }
+    .panel-title { font-family: var(--font-mono); font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: var(--accent); }
+    .panel-badge { font-family: var(--font-mono); font-size: 10px; padding: 3px 10px; border: 1px solid var(--border); color: var(--muted); letter-spacing: 1px; }
+    .panel-body { padding: 24px; }
+
+    /* ── Form ── */
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 20px; }
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-group label { font-family: var(--font-mono); font-size: 10px; letter-spacing: 1.5px; color: var(--muted); text-transform: uppercase; }
+    .form-group input {
+      background: var(--bg); border: 1px solid var(--border); color: var(--text);
+      padding: 10px 14px; font-family: var(--font-mono); font-size: 13px;
+      outline: none; transition: border-color 0.2s, box-shadow 0.2s; width: 100%;
+    }
+    .form-group input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(0,212,255,0.1); }
+
+    .btn { font-family: var(--font-mono); font-size: 12px; letter-spacing: 3px; text-transform: uppercase; border: none; cursor: pointer; padding: 13px 28px; transition: all 0.2s; }
+    .btn-primary { background: var(--accent); color: var(--bg); font-weight: bold; }
+    .btn-primary:hover { background: #33ddff; box-shadow: 0 0 20px rgba(0,212,255,0.5); }
+    .btn-secondary { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+    .btn-secondary:hover { border-color: var(--muted); color: var(--text); }
+    .btn-row { display: flex; gap: 12px; flex-wrap: wrap; }
+
+    /* ── Result ── */
+    #result-box { margin-top: 20px; padding: 20px; border: 1px solid var(--border); background: var(--bg); display: none; animation: fadeIn 0.4s ease; }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(-8px)} to{opacity:1} }
+    .result-label { font-family: var(--font-mono); font-size: 26px; font-weight: bold; letter-spacing: 4px; }
+    .result-label.attack { color: var(--danger); text-shadow: 0 0 20px rgba(255,60,92,0.6); }
+    .result-label.benign { color: var(--accent2); text-shadow: 0 0 20px rgba(0,255,157,0.4); }
+    .result-meta { font-family: var(--font-mono); font-size: 11px; color: var(--muted); margin-top: 8px; }
+    .confidence-bar-wrap { margin-top: 14px; }
+    .confidence-bar-label { font-family: var(--font-mono); font-size: 10px; color: var(--muted); letter-spacing: 2px; margin-bottom: 6px; }
+    .confidence-bar { height: 8px; background: var(--panel2); border: 1px solid var(--border); overflow: hidden; }
+    .confidence-fill { height: 100%; width: 0%; transition: width 0.8s cubic-bezier(0.4,0,0.2,1); }
+    .confidence-fill.attack { background: linear-gradient(90deg, var(--danger), #ff6b6b); }
+    .confidence-fill.benign { background: linear-gradient(90deg, var(--accent2), #00e8b0); }
+
+    /* ── Log ── */
+    #traffic-log { font-family: var(--font-mono); font-size: 12px; display: flex; flex-direction: column; gap: 6px; max-height: 340px; overflow-y: auto; }
+    #traffic-log::-webkit-scrollbar { width: 4px; }
+    #traffic-log::-webkit-scrollbar-thumb { background: var(--border); }
+    .log-entry { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-left: 3px solid var(--border); background: var(--bg); animation: slideIn 0.3s ease; }
+    @keyframes slideIn { from{opacity:0;transform:translateX(-10px)} to{opacity:1} }
+    .log-entry.attack { border-left-color: var(--danger); }
+    .log-entry.benign { border-left-color: var(--accent2); }
+    .log-time { color: var(--muted); font-size: 10px; min-width: 80px; }
+    .log-tag { font-size: 10px; padding: 2px 8px; font-weight: bold; letter-spacing: 1px; }
+    .log-tag.attack { background: rgba(255,60,92,0.15); color: var(--danger); }
+    .log-tag.benign { background: rgba(0,255,157,0.1); color: var(--accent2); }
+    .log-model { font-size: 9px; color: var(--muted); padding: 2px 6px; border: 1px solid var(--border); }
+    .log-conf { color: var(--muted); font-size: 10px; margin-left: auto; }
+
+    /* ── Charts ── */
+    .charts-section { display: grid; grid-template-columns: repeat(2,1fr); gap: 24px; }
+    .chart-img { width: 100%; border: 1px solid var(--border); display: block; filter: brightness(0.95) saturate(1.1); }
+    .section-title { font-family: var(--font-mono); font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: var(--muted); margin-bottom: 20px; display: flex; align-items: center; gap: 12px; }
+    .section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+    /* ── Metrics grid ── */
+    .metrics-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; }
+    .metric-item { background: var(--bg); border: 1px solid var(--border); padding: 16px; }
+    .metric-name { font-family: var(--font-mono); font-size: 10px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; }
+    .metric-val { font-family: var(--font-mono); font-size: 24px; color: var(--accent); font-weight: bold; transition: all 0.4s; }
+    .metric-bar { height: 4px; background: var(--panel2); margin-top: 10px; overflow: hidden; }
+    .metric-bar-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); transition: width 0.6s ease; }
+
+    .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 8px; }
+    @keyframes spin { to{transform:rotate(360deg)} }
+
+    footer { position: relative; z-index: 1; text-align: center; padding: 24px; border-top: 1px solid var(--border); font-family: var(--font-mono); font-size: 11px; color: var(--muted); letter-spacing: 2px; }
+
+    .offline-notice { font-family: var(--font-mono); font-size: 11px; color: var(--warn); padding: 10px 14px; border: 1px solid rgba(255,170,0,0.3); background: rgba(255,170,0,0.05); margin-bottom: 16px; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="logo">
+      <div class="logo-icon">🛡</div>
+      <div class="logo-text">
+        <h1>SecureNet IDS</h1>
+        <p>AI-POWERED INTRUSION DETECTION SYSTEM</p>
+      </div>
+    </div>
+    <div class="status-bar">
+      <div class="status-dot"></div>
+      <span id="header-status">SYSTEM ONLINE — CIC-IDS2017 MODEL ACTIVE</span>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- ── Stats Row ── -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-label">Dataset</div>
+        <div class="stat-value" style="font-size:16px;">CIC-IDS2017</div>
+        <div class="stat-sub">Friday DDoS Afternoon</div>
+      </div>
+      <div class="stat-card ok">
+        <div class="stat-label">Active Model</div>
+        <div class="stat-value" id="stat-model" style="font-size:14px;">Random Forest</div>
+        <div class="stat-sub" id="stat-model-sub">100 estimators · depth 20</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Accuracy</div>
+        <div class="stat-value" id="stat-acc">—</div>
+        <div class="stat-sub">Held-out test set (20%)</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">F1-Score</div>
+        <div class="stat-value" id="stat-f1">—</div>
+        <div class="stat-sub">Weighted average</div>
+      </div>
+    </div>
+
+    <!-- ── Model Switcher ── -->
+    <div class="model-switcher">
+      <span class="switcher-label">⚙ Active Model:</span>
+      <button class="model-btn active" id="btn-rf" onclick="switchModel('random_forest')">Random Forest</button>
+      <button class="model-btn" id="btn-dt" onclick="switchModel('decision_tree')">Decision Tree</button>
+      <div class="model-metrics-preview" id="metrics-preview">
+        <div class="mmp-item"><div class="mmp-val" id="prev-acc">—</div><div class="mmp-key">ACCURACY</div></div>
+        <div class="mmp-item"><div class="mmp-val" id="prev-prec">—</div><div class="mmp-key">PRECISION</div></div>
+        <div class="mmp-item"><div class="mmp-val" id="prev-rec">—</div><div class="mmp-key">RECALL</div></div>
+        <div class="mmp-item"><div class="mmp-val" id="prev-f1">—</div><div class="mmp-key">F1-SCORE</div></div>
+      </div>
+    </div>
+
+    <!-- ── Predict + Log ── -->
+    <div class="two-col">
+
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">⚡ Live Traffic Classifier</span>
+          <span class="panel-badge" id="badge-model">RF · POST /predict</span>
+        </div>
+        <div class="panel-body">
+          <div class="offline-notice" id="offline-notice">
+            ⚠ Backend must be running: <code>cd backend &amp;&amp; python app.py</code> — Demo mode active when unreachable.
+          </div>
+          <p class="section-title">Network Flow Features</p>
+          <div class="form-grid">
+            <div class="form-group"><label>Flow Duration (µs)</label><input type="number" id="f-duration" value="1234567" /></div>
+            <div class="form-group"><label>Total Fwd Packets</label><input type="number" id="f-fwd-pkts" value="85" /></div>
+            <div class="form-group"><label>Total Bwd Packets</label><input type="number" id="f-bwd-pkts" value="0" /></div>
+            <div class="form-group"><label>Flow Bytes/s</label><input type="number" id="f-bytes-s" value="98234.5" /></div>
+            <div class="form-group"><label>Flow Packets/s</label><input type="number" id="f-pkts-s" value="1200.3" /></div>
+            <div class="form-group"><label>Fwd Packet Length Mean</label><input type="number" id="f-fwd-len" value="46.2" /></div>
+            <div class="form-group"><label>Bwd Packet Length Mean</label><input type="number" id="f-bwd-len" value="0" /></div>
+            <div class="form-group"><label>Avg Packet Size</label><input type="number" id="f-avg-pkt" value="44.0" /></div>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-primary" onclick="predict()">▶ CLASSIFY TRAFFIC</button>
+            <button class="btn btn-secondary" onclick="loadDDoSDemo()">Load DDoS Demo</button>
+            <button class="btn btn-secondary" onclick="loadBenignDemo()">Load Benign Demo</button>
+          </div>
+          <div id="result-box">
+            <div class="result-label" id="result-label"></div>
+            <div class="result-meta" id="result-meta"></div>
+            <div class="confidence-bar-wrap">
+              <div class="confidence-bar-label">CONFIDENCE LEVEL</div>
+              <div class="confidence-bar"><div class="confidence-fill" id="conf-fill"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">📡 Detection Log</span>
+          <span class="panel-badge" id="log-count">0 EVENTS</span>
+        </div>
+        <div class="panel-body" style="padding:16px;">
+          <div id="traffic-log">
+            <div style="font-family:var(--font-mono);font-size:11px;color:var(--muted);padding:20px;text-align:center;">No events yet. Run a classification above.</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── Full Metrics Panel ── -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">📊 Model Performance — Both Models</span>
+        <span class="panel-badge" id="metrics-source-badge">LOADING FROM API...</span>
+      </div>
+      <div class="panel-body">
+        <p class="section-title">Random Forest</p>
+        <div class="metrics-grid" style="margin-bottom:24px;">
+          <div class="metric-item"><div class="metric-name">Accuracy</div><div class="metric-val" id="rf-acc">—</div><div class="metric-bar"><div class="metric-bar-fill" id="rf-acc-bar" style="width:0%"></div></div></div>
+          <div class="metric-item"><div class="metric-name">Precision</div><div class="metric-val" id="rf-prec">—</div><div class="metric-bar"><div class="metric-bar-fill" id="rf-prec-bar" style="width:0%"></div></div></div>
+          <div class="metric-item"><div class="metric-name">Recall</div><div class="metric-val" id="rf-rec">—</div><div class="metric-bar"><div class="metric-bar-fill" id="rf-rec-bar" style="width:0%"></div></div></div>
+          <div class="metric-item"><div class="metric-name">F1-Score</div><div class="metric-val" id="rf-f1">—</div><div class="metric-bar"><div class="metric-bar-fill" id="rf-f1-bar" style="width:0%"></div></div></div>
+        </div>
+        <p class="section-title">Decision Tree</p>
+        <div class="metrics-grid">
+          <div class="metric-item"><div class="metric-name">Accuracy</div><div class="metric-val" id="dt-acc">—</div><div class="metric-bar"><div class="metric-bar-fill" id="dt-acc-bar" style="width:0%"></div></div></div>
+          <div class="metric-item"><div class="metric-name">Precision</div><div class="metric-val" id="dt-prec">—</div><div class="metric-bar"><div class="metric-bar-fill" id="dt-prec-bar" style="width:0%"></div></div></div>
+          <div class="metric-item"><div class="metric-name">Recall</div><div class="metric-val" id="dt-rec">—</div><div class="metric-bar"><div class="metric-bar-fill" id="dt-rec-bar" style="width:0%"></div></div></div>
+          <div class="metric-item"><div class="metric-name">F1-Score</div><div class="metric-val" id="dt-f1">—</div><div class="metric-bar"><div class="metric-bar-fill" id="dt-f1-bar" style="width:0%"></div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Charts ── -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">📈 Analysis Charts</span>
+        <span class="panel-badge">GENERATED BY NOTEBOOK</span>
+      </div>
+      <div class="panel-body">
+        <p style="font-family:var(--font-mono);font-size:11px;color:var(--muted);margin-bottom:20px;">Auto-saved by notebook to this folder. Run all cells first.</p>
+        <div class="charts-section">
+          <div><div class="section-title">Class Distribution</div><img src="class_distribution.png" class="chart-img" onerror="this.style.display='none'" /></div>
+          <div><div class="section-title">Confusion Matrices</div><img src="confusion_matrices.png" class="chart-img" onerror="this.style.display='none'" /></div>
+          <div><div class="section-title">Model Comparison</div><img src="model_comparison.png" class="chart-img" onerror="this.style.display='none'" /></div>
+          <div><div class="section-title">Feature Importance</div><img src="feature_importance.png" class="chart-img" onerror="this.style.display='none'" /></div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+  <footer>CLO4 · INFORMATION SECURITY · SECURENET CORP · CIC-IDS2017</footer>
+
+  <script>
+    const API = 'http://127.0.0.1:5000';
+    let apiOnline = false;
+    let logCount  = 0;
+    let activeModel = 'random_forest';
+    let allMetrics  = null;
+
+    // ── Fallback demo metrics (your real results) ──────────────────────────
+    const DEMO_METRICS = {
+      random_forest: { accuracy: 0.9999, precision: 0.9999, recall: 0.9999, f1: 0.9999 },
+      decision_tree: { accuracy: 0.9996, precision: 0.9996, recall: 0.9996, f1: 0.9996 }
+    };
+
+    function pct(v) { return (v * 100).toFixed(2) + '%'; }
+
+    // ── Update all metric displays ─────────────────────────────────────────
+    function updateMetricDisplays(metricsData) {
+      allMetrics = metricsData;
+      const rf = metricsData.random_forest;
+      const dt = metricsData.decision_tree;
+
+      // Full metrics panel
+      [['rf', rf], ['dt', dt]].forEach(([pfx, m]) => {
+        ['acc','prec','rec','f1'].forEach((key, i) => {
+          const mKey = ['accuracy','precision','recall','f1'][i];
+          const val  = m[mKey];
+          const el   = document.getElementById(`${pfx}-${key}`);
+          const bar  = document.getElementById(`${pfx}-${key}-bar`);
+          if (el)  el.textContent = pct(val);
+          if (bar) setTimeout(() => bar.style.width = (val * 100) + '%', 200);
+        });
+      });
+
+      // Preview bar (current model)
+      refreshPreview();
+
+      // Top stat cards
+      const cur = metricsData[activeModel];
+      document.getElementById('stat-acc').textContent = pct(cur.accuracy);
+      document.getElementById('stat-f1').textContent  = pct(cur.f1);
+    }
+
+    function refreshPreview() {
+      if (!allMetrics) return;
+      const m = allMetrics[activeModel];
+      document.getElementById('prev-acc').textContent  = pct(m.accuracy);
+      document.getElementById('prev-prec').textContent = pct(m.precision);
+      document.getElementById('prev-rec').textContent  = pct(m.recall);
+      document.getElementById('prev-f1').textContent   = pct(m.f1);
+      document.getElementById('stat-acc').textContent  = pct(m.accuracy);
+      document.getElementById('stat-f1').textContent   = pct(m.f1);
+    }
+
+    // ── API Init ───────────────────────────────────────────────────────────
+    async function init() {
+      try {
+        const r = await fetch(`${API}/health`, { signal: AbortSignal.timeout(2000) });
+        if (r.ok) {
+          apiOnline = true;
+          document.getElementById('offline-notice').style.display = 'none';
+          // Fetch real metrics
+          const mr = await fetch(`${API}/metrics`);
+          const md = await mr.json();
+          document.getElementById('metrics-source-badge').textContent = 'LIVE FROM MODEL';
+          updateMetricDisplays(md.metrics);
+        } else throw new Error();
+      } catch {
+        apiOnline = false;
+        // Use demo metrics
+        document.getElementById('metrics-source-badge').textContent = 'DEMO MODE (run notebook first)';
+        updateMetricDisplays(DEMO_METRICS);
+      }
+    }
+    init();
+
+    // ── Model Switcher ─────────────────────────────────────────────────────
+    async function switchModel(key) {
+      activeModel = key;
+
+      // Button UI
+      document.getElementById('btn-rf').classList.toggle('active', key === 'random_forest');
+      document.getElementById('btn-dt').classList.toggle('active', key === 'decision_tree');
+
+      // Stat card
+      const labels = {
+        random_forest: ['Random Forest', '100 estimators · depth 20'],
+        decision_tree: ['Decision Tree', 'max_depth = 10']
+      };
+      document.getElementById('stat-model').textContent     = labels[key][0];
+      document.getElementById('stat-model-sub').textContent = labels[key][1];
+      document.getElementById('badge-model').textContent    = (key === 'random_forest' ? 'RF' : 'DT') + ' · POST /predict';
+
+      // Update preview
+      refreshPreview();
+
+      // Tell backend
+      if (apiOnline) {
+        try {
+          await fetch(`${API}/set_model`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model: key })
+          });
+        } catch {}
+      }
+    }
+
+    // ── Predict ────────────────────────────────────────────────────────────
+    function getInputs() {
+      return {
+        'Flow Duration':          parseFloat(document.getElementById('f-duration').value) || 0,
+        'Total Fwd Packets':      parseFloat(document.getElementById('f-fwd-pkts').value) || 0,
+        'Total Backward Packets': parseFloat(document.getElementById('f-bwd-pkts').value) || 0,
+        'Flow Bytes/s':           parseFloat(document.getElementById('f-bytes-s').value)  || 0,
+        'Flow Packets/s':         parseFloat(document.getElementById('f-pkts-s').value)   || 0,
+        'Fwd Packet Length Mean': parseFloat(document.getElementById('f-fwd-len').value)  || 0,
+        'Bwd Packet Length Mean': parseFloat(document.getElementById('f-bwd-len').value)  || 0,
+        'Average Packet Size':    parseFloat(document.getElementById('f-avg-pkt').value)  || 0,
+      };
+    }
+
+    function loadDDoSDemo() {
+      document.getElementById('f-duration').value = 1234567;
+      document.getElementById('f-fwd-pkts').value = 850;
+      document.getElementById('f-bwd-pkts').value = 0;
+      document.getElementById('f-bytes-s').value  = 982345.5;
+      document.getElementById('f-pkts-s').value   = 12000.3;
+      document.getElementById('f-fwd-len').value  = 46.2;
+      document.getElementById('f-bwd-len').value  = 0;
+      document.getElementById('f-avg-pkt').value  = 44.0;
+    }
+
+    function loadBenignDemo() {
+      document.getElementById('f-duration').value = 5432100;
+      document.getElementById('f-fwd-pkts').value = 12;
+      document.getElementById('f-bwd-pkts').value = 10;
+      document.getElementById('f-bytes-s').value  = 1234.5;
+      document.getElementById('f-pkts-s').value   = 4.2;
+      document.getElementById('f-fwd-len').value  = 512.8;
+      document.getElementById('f-bwd-len').value  = 480.2;
+      document.getElementById('f-avg-pkt').value  = 496.5;
+    }
+
+    function simulateResult(inputs) {
+      const isAttack = inputs['Flow Packets/s'] > 100 || inputs['Total Fwd Packets'] > 100;
+      const conf     = isAttack ? 0.9999 : 0.9996;
+      return {
+        prediction: isAttack ? 'DDoS' : 'BENIGN',
+        is_attack:  isAttack,
+        confidence: conf,
+        model_used: activeModel,
+        _demo: true
+      };
+    }
+
+    async function predict() {
+      const inputs = getInputs();
+      const btn = document.querySelector('.btn-primary');
+      btn.innerHTML = '<span class="spinner"></span>ANALYZING...';
+      btn.disabled  = true;
+
+      let result;
+      try {
+        if (apiOnline) {
+          const resp = await fetch(`${API}/predict`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(inputs),
+            signal: AbortSignal.timeout(5000)
+          });
+          result = await resp.json();
+        } else {
+          await new Promise(r => setTimeout(r, 500));
+          result = simulateResult(inputs);
+        }
+        showResult(result);
+        addLog(result);
+      } catch {
+        result = simulateResult(inputs);
+        showResult(result);
+        addLog(result);
+      } finally {
+        btn.innerHTML = '▶ CLASSIFY TRAFFIC';
+        btn.disabled  = false;
+      }
+    }
+
+    function showResult(result) {
+      const box   = document.getElementById('result-box');
+      const label = document.getElementById('result-label');
+      const meta  = document.getElementById('result-meta');
+      const fill  = document.getElementById('conf-fill');
+
+      box.style.display = 'block';
+      const isAttack = result.is_attack;
+      label.className   = 'result-label ' + (isAttack ? 'attack' : 'benign');
+      label.textContent = isAttack ? '⚠ DDoS ATTACK DETECTED' : '✓ BENIGN TRAFFIC';
+
+      const conf  = (result.confidence * 100).toFixed(2);
+      const mName = result.model_used === 'random_forest' ? 'Random Forest' : 'Decision Tree';
+      meta.textContent = `Confidence: ${conf}% | Model: ${mName}${result._demo ? ' [DEMO]' : ''} | Probs: BENIGN=${(result.probabilities?.BENIGN*100||0).toFixed(2)}% DDoS=${(result.probabilities?.DDoS*100||0).toFixed(2)}%`;
+
+      fill.className = 'confidence-fill ' + (isAttack ? 'attack' : 'benign');
+      setTimeout(() => { fill.style.width = conf + '%'; }, 50);
+    }
+
+    function addLog(result) {
+      const log = document.getElementById('traffic-log');
+      if (logCount === 0) log.innerHTML = '';
+
+      const time     = new Date().toTimeString().split(' ')[0];
+      const isAttack = result.is_attack;
+      const conf     = (result.confidence * 100).toFixed(0);
+      const mLabel   = result.model_used === 'random_forest' ? 'RF' : 'DT';
+
+      const entry = document.createElement('div');
+      entry.className = 'log-entry ' + (isAttack ? 'attack' : 'benign');
+      entry.innerHTML = `
+        <span class="log-time">${time}</span>
+        <span class="log-tag ${isAttack ? 'attack' : 'benign'}">${isAttack ? 'DDoS' : 'BENIGN'}</span>
+        <span class="log-model">${mLabel}${result._demo ? ' DEMO' : ''}</span>
+        <span class="log-conf">${conf}% conf</span>
+      `;
+      log.insertBefore(entry, log.firstChild);
+      logCount++;
+      document.getElementById('log-count').textContent = logCount + ' EVENTS';
+    }
+  </script>
+</body>
+</html>
