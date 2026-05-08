@@ -3,8 +3,8 @@
 #  Install with: pip install -r backend/requirements.txt
 # ============================================================
 
-flask==3.0.3
-flask-cors==4.0.1
-scikit-learn==1.5.1
-numpy==1.26.4
-joblib==1.4.2
+flask
+flask-cors
+scikit-learn
+numpy
+joblib
